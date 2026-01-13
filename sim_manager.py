@@ -5,6 +5,7 @@ Simulation Manager - A tool to manage local simulation projects
 
 import argparse
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -90,6 +91,34 @@ def list_command(args):
         print(f"  • {directory.name}{git_indicator}")
 
 
+def remove_command(args):
+    """Handle the remove command"""
+    local_simulations_dir = Path(__file__).parent / "Local_Simulations"
+    
+    if not local_simulations_dir.exists():
+        print(f"Error: Local_Simulations directory does not exist.", file=sys.stderr)
+        sys.exit(1)
+    
+    target_dir = local_simulations_dir / args.name
+    
+    if not target_dir.exists():
+        print(f"Error: Directory '{args.name}' not found in Local_Simulations.", file=sys.stderr)
+        sys.exit(1)
+    
+    if not target_dir.is_dir():
+        print(f"Error: '{args.name}' is not a directory.", file=sys.stderr)
+        sys.exit(1)
+    
+    # Remove the directory
+    print(f"Removing {target_dir}...")
+    try:
+        shutil.rmtree(target_dir)
+        print(f"✓ Successfully removed {args.name}")
+    except Exception as e:
+        print(f"Error removing directory: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Simulation Manager - Manage local simulation projects'
@@ -103,12 +132,18 @@ def main():
     # List command
     list_parser = subparsers.add_parser('list', help='List downloaded projects')
     
+    # Remove command
+    remove_parser = subparsers.add_parser('remove', help='Remove a project from Local_Simulations')
+    remove_parser.add_argument('name', help='Name of the directory to remove')
+    
     args = parser.parse_args()
     
     if args.command == 'add':
         add_command(args)
     elif args.command == 'list':
         list_command(args)
+    elif args.command == 'remove':
+        remove_command(args)
     else:
         parser.print_help()
 
