@@ -119,6 +119,60 @@ def remove_command(args):
         sys.exit(1)
 
 
+def pull_command(args):
+    """Handle the pull command"""
+    local_simulations_dir = Path(__file__).parent / "Local_Simulations"
+    
+    if not local_simulations_dir.exists():
+        print("Local_Simulations directory does not exist yet.")
+        print("Use 'add' command to download a project first.")
+        return
+    
+    # Get all directories in Local_Simulations
+    directories = [d for d in local_simulations_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
+    
+    if not directories:
+        print("No projects found in Local_Simulations.")
+        return
+    
+    # Filter for git repositories
+    git_repos = [d for d in directories if (d / ".git").exists()]
+    
+    if not git_repos:
+        print("No git repositories found in Local_Simulations.")
+        return
+    
+    print(f"Pulling updates for {len(git_repos)} repositories...\n")
+    
+    success_count = 0
+    error_count = 0
+    
+    for repo in sorted(git_repos):
+        print(f"📦 {repo.name}:")
+        try:
+            result = subprocess.run(
+                ['git', '-C', str(repo), 'pull'],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            output = result.stdout.strip()
+            if "Already up to date" in output or "Already up-to-date" in output:
+                print(f"   ✓ Already up to date")
+            else:
+                print(f"   ✓ Updated")
+                if output:
+                    for line in output.split('\n')[:3]:  # Show first 3 lines
+                        print(f"     {line}")
+            success_count += 1
+        except subprocess.CalledProcessError as e:
+            print(f"   ✗ Error: {e.stderr.strip()}")
+            error_count += 1
+        print()
+    
+    print(f"Summary: {success_count} succeeded, {error_count} failed")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Simulation Manager - Manage local simulation projects'
@@ -136,6 +190,9 @@ def main():
     remove_parser = subparsers.add_parser('remove', help='Remove a project from Local_Simulations')
     remove_parser.add_argument('name', help='Name of the directory to remove')
     
+    # Pull command
+    pull_parser = subparsers.add_parser('pull', help='Run git pull for all repositories')
+    
     args = parser.parse_args()
     
     if args.command == 'add':
@@ -144,6 +201,8 @@ def main():
         list_command(args)
     elif args.command == 'remove':
         remove_command(args)
+    elif args.command == 'pull':
+        pull_command(args)
     else:
         parser.print_help()
 
