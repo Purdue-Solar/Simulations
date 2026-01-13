@@ -65,6 +65,31 @@ def add_command(args):
     clone_github_repo(args.url, local_simulations_dir)
 
 
+def list_command(args):
+    """Handle the list command"""
+    local_simulations_dir = Path(__file__).parent / "Local_Simulations"
+    
+    if not local_simulations_dir.exists():
+        print("Local_Simulations directory does not exist yet.")
+        print("Use 'add' command to download a project first.")
+        return
+    
+    # Get all directories in Local_Simulations
+    directories = [d for d in local_simulations_dir.iterdir() if d.is_dir() and not d.name.startswith('.')]
+    
+    if not directories:
+        print("No projects found in Local_Simulations.")
+        return
+    
+    print(f"Downloaded projects in Local_Simulations ({len(directories)}):")
+    print()
+    for directory in sorted(directories):
+        # Check if it's a git repository
+        is_git = (directory / ".git").exists()
+        git_indicator = " [git]" if is_git else ""
+        print(f"  • {directory.name}{git_indicator}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Simulation Manager - Manage local simulation projects'
@@ -75,10 +100,15 @@ def main():
     add_parser = subparsers.add_parser('add', help='Add a GitHub project to Local_Simulations')
     add_parser.add_argument('url', help='GitHub repository URL')
     
+    # List command
+    list_parser = subparsers.add_parser('list', help='List downloaded projects')
+    
     args = parser.parse_args()
     
     if args.command == 'add':
         add_command(args)
+    elif args.command == 'list':
+        list_command(args)
     else:
         parser.print_help()
 
