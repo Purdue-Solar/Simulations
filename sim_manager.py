@@ -139,6 +139,46 @@ def remove_command(args):
         sys.exit(1)
 
 
+def run_command(args):
+    """Handle the run command"""
+    local_simulations_dir = Path(__file__).parent / "Local_Simulations"
+    
+    if not local_simulations_dir.exists():
+        print(f"Error: Local_Simulations directory does not exist.", file=sys.stderr)
+        sys.exit(1)
+    
+    target_dir = local_simulations_dir / args.name
+    
+    if not target_dir.exists():
+        print(f"Error: Directory '{args.name}' not found in Local_Simulations.", file=sys.stderr)
+        sys.exit(1)
+    
+    if not target_dir.is_dir():
+        print(f"Error: '{args.name}' is not a directory.", file=sys.stderr)
+        sys.exit(1)
+    
+    manager_file = target_dir / "manager.py"
+    
+    if not manager_file.exists():
+        print(f"Error: manager.py not found in '{args.name}'.", file=sys.stderr)
+        print(f"\nTo initialize interactive mode, run:", file=sys.stderr)
+        print(f"  python3 sim_manager.py dev extract_and_link_fields {target_dir}", file=sys.stderr)
+        sys.exit(1)
+    
+    # Run manager.py
+    print(f"Running {manager_file}...\n")
+    try:
+        result = subprocess.run(
+            [sys.executable, str(manager_file)],
+            cwd=str(target_dir),
+            check=False
+        )
+        sys.exit(result.returncode)
+    except Exception as e:
+        print(f"Error running manager.py: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def pull_command(args):
     """Handle the pull command"""
     local_simulations_dir = Path(__file__).parent / "Local_Simulations"
@@ -682,6 +722,10 @@ def main():
     # Pull command
     pull_parser = subparsers.add_parser('pull', help='Run git pull for all repositories')
     
+    # Run command
+    run_parser = subparsers.add_parser('run', help='Run manager.py in a project directory')
+    run_parser.add_argument('name', help='Name of the project directory to run')
+    
     # Dev command with subcommands
     dev_parser = subparsers.add_parser('dev', help='Development utilities')
     dev_subparsers = dev_parser.add_subparsers(dest='dev_command', help='Dev commands')
@@ -703,6 +747,8 @@ def main():
         remove_command(args)
     elif args.command == 'pull':
         pull_command(args)
+    elif args.command == 'run':
+        run_command(args)
     elif args.command == 'dev':
         if args.dev_command == 'extract_and_link_fields':
             extract_and_link_fields_command(args)
