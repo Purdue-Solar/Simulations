@@ -42,7 +42,7 @@ def main():
     
     # Run command
     run_parser = subparsers.add_parser('run', help='Run manager.py in a project directory')
-    run_parser.add_argument('name', help='Name of the project directory to run')
+    run_parser.add_argument('name', nargs='?', default=None, help='Name of the project directory to run (optional - will prompt if not provided)')
     
     # Dev command with subcommands
     dev_parser = subparsers.add_parser('dev', help='Development utilities')
