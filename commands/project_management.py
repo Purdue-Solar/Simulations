@@ -7,6 +7,26 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 
+# Import for running dev command after pull
+def _run_dev_extract(repo_path):
+    """Run the dev extract_and_link_fields command on a repository.
+    
+    Args:
+        repo_path: Path to the repository directory
+    """
+    from .dev_tools import extract_and_link_fields_command
+    import argparse
+    
+    # Create a mock args object for the dev command
+    mock_args = argparse.Namespace(directory=str(repo_path))
+    
+    try:
+        extract_and_link_fields_command(mock_args)
+    except Exception as e:
+        print(f"   ⚠ Warning: Failed to regenerate manager.py: {e}")
+
+
+
 def clone_github_repo(github_url, target_dir):
     """
     Clone a GitHub repository into the target directory.
@@ -68,14 +88,10 @@ def add_command(args):
     
     cloned_dir = local_simulations_dir / repo_name
     
-    # Check if manager.py exists (project already initialized)
-    manager_file = cloned_dir / "manager.py"
-    if manager_file.exists():
-        print(f"\n✓ Project already has manager.py")
-        print(f"  Run: python3 {manager_file}")
-    else:
-        print(f"\n💡 To enable interactive mode, run:")
-        print(f"  python3 sim_manager.py dev extract_and_link_fields {cloned_dir}")
+    # Automatically run dev extract_and_link_fields to set up the project
+    print(f"\n→ Setting up project configuration...")
+    _run_dev_extract(cloned_dir)
+    print(f"✓ Project ready! Run: python3 {cloned_dir / 'manager.py'}")
 
 
 def list_command(args):
@@ -161,6 +177,33 @@ def pull_command(args):
     
     for repo in sorted(git_repos):
         print(f"📦 {repo.name}:")
+        
+        # Step 1: Reset hard to discard local changes
+        print(f"   → Resetting local changes...")
+        try:
+            subprocess.run(
+                ['git', '-C', str(repo), 'reset', '--hard'],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+        except subprocess.CalledProcessError as e:
+            print(f"   ✗ Error resetting: {e.stderr.strip()}")
+            error_count += 1
+            print()
+            continue
+        
+        # Step 2: Remove manager.py if it exists
+        manager_file = repo / "manager.py"
+        if manager_file.exists():
+            try:
+                manager_file.unlink()
+                print(f"   → Removed manager.py")
+            except Exception as e:
+                print(f"   ⚠ Warning: Could not remove manager.py: {e}")
+        
+        # Step 3: Pull updates
+        print(f"   → Pulling updates...")
         try:
             result = subprocess.run(
                 ['git', '-C', str(repo), 'pull'],
@@ -175,11 +218,18 @@ def pull_command(args):
                 print(f"   ✓ Updated")
                 # Show first line of output for context
                 first_line = output.split('\n')[0]
-                print(f"   {first_line}")
+                print(f"     {first_line}")
+            
+            # Step 4: Regenerate manager.py using dev command
+            print(f"   → Regenerating configuration...")
+            _run_dev_extract(repo)
+            print(f"   ✓ Configuration regenerated")
+            
             success_count += 1
         except subprocess.CalledProcessError as e:
-            print(f"   ✗ Error: {e.stderr.strip()}")
+            print(f"   ✗ Error pulling: {e.stderr.strip()}")
             error_count += 1
         print()
     
     print(f"Summary: {success_count} succeeded, {error_count} failed")
+
