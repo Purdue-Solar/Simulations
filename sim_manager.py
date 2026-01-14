@@ -36,7 +36,7 @@ def main():
     
     # Remove command
     remove_parser = subparsers.add_parser('remove', help='Remove a project from Local_Simulations')
-    remove_parser.add_argument('name', help='Name of the directory to remove')
+    remove_parser.add_argument('name', nargs='?', default=None, help='Name of the directory to remove (optional - will prompt if not provided)')
     
     # Pull command
     pull_parser = subparsers.add_parser('pull', help='Run git pull for all repositories')
