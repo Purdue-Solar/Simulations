@@ -160,6 +160,70 @@ def list_command(args):
         print(f"  • {directory.name}{git_indicator}")
 
 
+def cleanup_command(args):
+    """Handle the cleanup command - reset all local simulations to clean state"""
+    local_simulations_dir = Path(__file__).parent.parent / "Local_Simulations"
+    
+    if not local_simulations_dir.exists():
+        print("Local_Simulations directory does not exist.")
+        return
+    
+    # Find all git repositories
+    git_repos = []
+    for item in local_simulations_dir.iterdir():
+        if item.is_dir() and (item / ".git").exists():
+            git_repos.append(item)
+    
+    if not git_repos:
+        print("No git repositories found in Local_Simulations.")
+        return
+    
+    print(f"Found {len(git_repos)} git repositories to clean up\n")
+    
+    success_count = 0
+    error_count = 0
+    
+    for repo in sorted(git_repos):
+        print(f"Cleaning {repo.name}...")
+        
+        # Run git reset --hard to restore files
+        print(f"   → Resetting to clean state...")
+        try:
+            subprocess.run(
+                ['git', '-C', str(repo), 'reset', '--hard'],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            print(f"   ✓ Reset complete")
+            
+            # Remove untracked files and directories (except .git)
+            print(f"   → Removing untracked files...")
+            subprocess.run(
+                ['git', '-C', str(repo), 'clean', '-fdx'],
+                check=True,
+                capture_output=True,
+                text=True
+            )
+            print(f"   ✓ Cleanup complete")
+            
+            # Reinitialize the project (uv sync + regenerate manager.py)
+            print(f"   → Reinitializing project...")
+            _initialize_project(repo, verbose=False)
+            print(f"   ✓ Project reinitialized")
+            
+            success_count += 1
+        except subprocess.CalledProcessError as e:
+            print(f"   ✗ Error: {e.stderr.strip()}")
+            error_count += 1
+        except Exception as e:
+            print(f"   ✗ Error: {e}")
+            error_count += 1
+        print()
+    
+    print(f"Summary: {success_count} cleaned, {error_count} failed")
+
+
 def remove_command(args):
     """Handle the remove command"""
     local_simulations_dir = Path(__file__).parent.parent / "Local_Simulations"

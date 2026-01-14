@@ -15,6 +15,7 @@ from commands import (
     list_command,
     remove_command,
     pull_command,
+    cleanup_command,
     run_command,
     extract_and_link_fields_command,
 )
@@ -39,6 +40,9 @@ def main():
     
     # Pull command
     pull_parser = subparsers.add_parser('pull', help='Run git pull for all repositories')
+    
+    # Cleanup command
+    cleanup_parser = subparsers.add_parser('cleanup', help='Reset all local simulations to clean state (git reset --hard + clean)')
     
     # Run command
     run_parser = subparsers.add_parser('run', help='Run manager.py in a project directory')
@@ -66,6 +70,8 @@ def main():
         remove_command(args)
     elif args.command == 'pull':
         pull_command(args)
+    elif args.command == 'cleanup':
+        cleanup_command(args)
     elif args.command == 'run':
         run_command(args)
     elif args.command == 'dev':
