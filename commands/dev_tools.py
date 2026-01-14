@@ -9,6 +9,8 @@ from pathlib import Path
 def _extract_variables_from_file(py_file):
     """Extract variables from a single Python file.
     
+    Only extracts module-level variables, not variables inside functions.
+    
     Args:
         py_file: Path to the Python file
         
@@ -22,8 +24,8 @@ def _extract_variables_from_file(py_file):
         
         file_vars = []
         
-        # Walk through the AST to find assignments
-        for node in ast.walk(tree):
+        # Only walk through top-level (module-level) statements
+        for node in tree.body:
             if isinstance(node, ast.Assign):
                 # Only process single target assignments at module level
                 if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
@@ -80,22 +82,27 @@ def _extract_variables_from_file(py_file):
 def _prepare_config_data(extracted_vars):
     """Prepare configuration data for JSON format.
     
+    Only includes configurable variables (non-expressions).
+    
     Args:
         extracted_vars: Dictionary mapping filenames to variable lists
         
     Returns:
-        dict: Configuration data formatted for manager.py
+        dict: Configuration data formatted for manager.py (only configurable vars)
     """
     config_data = {}
     for filename, vars_list in extracted_vars.items():
         config_data[filename] = {}
         for var_name, value, line_num, _, is_expression in vars_list:
+            # Skip expression variables - they cannot be configured via command line
+            if is_expression:
+                continue
+                
             config_data[filename][var_name] = {
                 'value': value,
                 'type': type(value).__name__,
                 'line': line_num,
                 'arg': f'--{var_name}',
-                'is_expression': is_expression
             }
     return config_data
 
@@ -191,6 +198,8 @@ def _generate_argparse_code(extracted_vars):
 def _modify_file_for_argparse(py_file, extracted_vars):
     """Modify a Python file to use command-line arguments.
     
+    Only modifies non-expression variables. Expression variables are left unchanged.
+    
     Args:
         py_file: Path to the Python file
         extracted_vars: List of tuples (var_name, value, line_num, col_offset, is_expression)
@@ -202,18 +211,25 @@ def _modify_file_for_argparse(py_file, extracted_vars):
         with open(py_file, 'r', encoding='utf-8') as f:
             lines = f.readlines()
         
+        # Filter to only configurable (non-expression) variables
+        configurable_vars = [(name, val, line, col) for name, val, line, col, is_expr in extracted_vars if not is_expr]
+        
+        if not configurable_vars:
+            return False
+        
         # Parse to get AST with line numbers
         content = ''.join(lines)
         tree = ast.parse(content, filename=py_file.name)
         
-        # Find all assignments to modify
+        # Find all assignments to modify (only for configurable variables)
+        configurable_var_names = {v[0] for v in configurable_vars}
         assignments_to_modify = []
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
                     var_name = node.targets[0].id
-                    # Check if this variable is in our extracted list
-                    if any(v[0] == var_name for v in extracted_vars):
+                    # Only modify if it's a configurable (non-expression) variable
+                    if var_name in configurable_var_names:
                         assignments_to_modify.append((var_name, node.lineno))
         
         if not assignments_to_modify:
@@ -222,14 +238,14 @@ def _modify_file_for_argparse(py_file, extracted_vars):
         # Find insertion point
         insert_line = _find_insertion_point(lines)
         
-        # Generate and insert argparse code
-        argparse_code = _generate_argparse_code(extracted_vars)
+        # Generate and insert argparse code (only for configurable variables)
+        argparse_code = _generate_argparse_code([(n, v, l, c, False) for n, v, l, c in configurable_vars])
         lines[insert_line:insert_line] = argparse_code
         
         # Adjust line numbers due to insertion
         line_offset = len(argparse_code)
         
-        # Modify variable assignments
+        # Modify variable assignments (only for configurable variables)
         for var_name, orig_line_num in assignments_to_modify:
             adjusted_line_num = orig_line_num + line_offset - 1  # -1 for 0-indexing
             
