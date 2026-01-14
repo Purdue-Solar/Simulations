@@ -26,6 +26,47 @@ def _run_dev_extract(repo_path):
         print(f"   ⚠ Warning: Failed to regenerate manager.py: {e}")
 
 
+def _initialize_project(repo_path, verbose=True):
+    """Initialize a project by running uv sync and dev extract.
+    
+    Args:
+        repo_path: Path to the repository directory
+        verbose: Whether to print progress messages
+    """
+    repo_path = Path(repo_path)
+    
+    # Check if pyproject.toml or requirements.txt exists
+    has_pyproject = (repo_path / "pyproject.toml").exists()
+    has_requirements = (repo_path / "requirements.txt").exists()
+    
+    if has_pyproject or has_requirements:
+        if verbose:
+            print(f"→ Installing dependencies with uv sync...")
+        try:
+            result = subprocess.run(
+                ['uv', 'sync'],
+                cwd=str(repo_path),
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            if verbose:
+                print(f"✓ Dependencies installed")
+        except subprocess.CalledProcessError as e:
+            if verbose:
+                print(f"⚠ Warning: uv sync failed: {e.stderr.strip()}")
+        except FileNotFoundError:
+            if verbose:
+                print(f"⚠ Warning: uv not found, skipping dependency installation")
+    
+    # Run dev extract
+    if verbose:
+        print(f"→ Setting up project configuration...")
+    _run_dev_extract(repo_path)
+    if verbose:
+        print(f"✓ Configuration ready")
+
+
 
 def clone_github_repo(github_url, target_dir):
     """
@@ -88,10 +129,10 @@ def add_command(args):
     
     cloned_dir = local_simulations_dir / repo_name
     
-    # Automatically run dev extract_and_link_fields to set up the project
-    print(f"\n→ Setting up project configuration...")
-    _run_dev_extract(cloned_dir)
-    print(f"✓ Project ready! Run: python3 {cloned_dir / 'manager.py'}")
+    # Automatically initialize the project (uv sync + dev extract)
+    print()
+    _initialize_project(cloned_dir, verbose=True)
+    print(f"\n✓ Project ready! Run: python3 {cloned_dir / 'manager.py'}")
 
 
 def list_command(args):
@@ -220,10 +261,10 @@ def pull_command(args):
                 first_line = output.split('\n')[0]
                 print(f"     {first_line}")
             
-            # Step 4: Regenerate manager.py using dev command
-            print(f"   → Regenerating configuration...")
-            _run_dev_extract(repo)
-            print(f"   ✓ Configuration regenerated")
+            # Step 4: Reinitialize project (uv sync + regenerate manager.py)
+            print(f"   → Reinitializing project...")
+            _initialize_project(repo, verbose=False)
+            print(f"   ✓ Project reinitialized")
             
             success_count += 1
         except subprocess.CalledProcessError as e:
