@@ -67,6 +67,23 @@ def add_command(args):
     """Handle the add command"""
     local_simulations_dir = Path(__file__).parent / "Local_Simulations"
     clone_github_repo(args.url, local_simulations_dir)
+    
+    # Extract repo name to show helpful message
+    parsed_url = urlparse(args.url)
+    repo_name = parsed_url.path.strip('/').split('/')[-1]
+    if repo_name.endswith('.git'):
+        repo_name = repo_name[:-4]
+    
+    cloned_dir = local_simulations_dir / repo_name
+    
+    # Check if manager.py exists (project already initialized)
+    manager_file = cloned_dir / "manager.py"
+    if manager_file.exists():
+        print(f"\n✓ Project already has manager.py")
+        print(f"  Run: python3 {manager_file}")
+    else:
+        print(f"\n💡 To enable interactive mode, run:")
+        print(f"  python3 sim_manager.py dev extract_and_link_fields {cloned_dir}")
 
 
 def list_command(args):
