@@ -349,7 +349,9 @@ def create_manager_script(directory, python_files, config_data):
     manager_path = directory / "manager.py"
     
     # Convert config_data to a formatted Python dictionary string
-    config_str = json.dumps(config_data, indent=2)
+    # Use repr() instead of json.dumps() to get proper Python syntax (True/False not true/false)
+    import pprint
+    config_str = pprint.pformat(config_data, indent=2, width=100)
     
     # Write the manager script with embedded configuration
     with open(manager_path, 'w', encoding='utf-8') as f:
