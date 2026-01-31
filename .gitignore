@@ -2,3 +2,5 @@ Local_Simulations/
 __pycache__/
 *.md
 !README.md
+Local_Simulations/*
+!Local_simulations/

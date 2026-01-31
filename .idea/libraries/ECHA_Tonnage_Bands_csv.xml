@@ -1,0 +1,9 @@
+<component name="libraryTable">
+  <library name="ECHA Tonnage Bands.csv">
+    <CLASSES>
+      <root url="jar://$PROJECT_DIR$/Local_Simulations/Battery-Cooling-Simulator/.venv/lib/python3.14/site-packages/thermo/Law/ECHA Tonnage Bands.csv.zip!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
